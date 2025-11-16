@@ -1,0 +1,360 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Advanced Mental Health App Design System */
+
+@layer base {
+  :root {
+    /* Calming Mental Health Color Palette */
+    --background: 240 20% 98%;
+    --foreground: 215 25% 25%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 25%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 25%;
+
+    /* Calming Blue Primary */
+    --primary: 210 100% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Soft Teal Secondary */
+    --secondary: 180 25% 90%;
+    --secondary-foreground: 180 50% 25%;
+
+    /* Gentle Green Accent */
+    --accent: 150 40% 85%;
+    --accent-foreground: 150 60% 25%;
+
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 15% 55%;
+
+    --destructive: 350 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 210 100% 65%;
+
+    --radius: 1rem;
+
+    /* Wellness Color Palette */
+    --wellness-calm: 210 100% 70%;
+    --wellness-serene: 180 60% 65%;
+    --wellness-peaceful: 150 50% 70%;
+    --wellness-gentle: 120 40% 75%;
+    --wellness-warm: 45 85% 75%;
+
+    /* Glass Effects */
+    --glass-bg: 0 0% 100% / 0.1;
+    --glass-border: 0 0% 100% / 0.2;
+    --glass-shadow: 0 0% 0% / 0.1;
+
+    /* Animations */
+    --animation-duration: 0.3s;
+    --animation-curve: cubic-bezier(0.4, 0, 0.2, 1);
+    --hover-lift: translateY(-4px);
+    --hover-scale: scale(1.02);
+
+    /* Haven Color Palette */
+    --haven-dark-emerald: 169 100% 12%;
+    --haven-deep-aqua: 165 40% 10%;
+    --haven-muted-teal: 167 33% 21%;
+    --haven-soft-glow-aqua: 174 96% 68%;
+    --haven-off-white: 0 0% 96%;
+    --haven-muted-gray-aqua: 171 36% 67%;
+    --haven-subtle-gray: 220 9% 46%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--wellness-calm)), hsl(var(--wellness-serene)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--wellness-peaceful)), hsl(var(--wellness-gentle)));
+    --gradient-warm: linear-gradient(135deg, hsl(var(--wellness-warm)), hsl(var(--wellness-peaceful)));
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    --gradient-shimmer: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    --gradient-haven: linear-gradient(135deg, hsl(var(--haven-soft-glow-aqua)), hsl(174 85% 60%));
+  }
+
+  .dark {
+    --background: 215 30% 8%;
+    --foreground: 210 15% 85%;
+
+    --card: 215 25% 12%;
+    --card-foreground: 210 15% 85%;
+
+    --popover: 215 25% 12%;
+    --popover-foreground: 210 15% 85%;
+
+    --primary: 210 100% 70%;
+    --primary-foreground: 215 30% 8%;
+
+    --secondary: 180 15% 20%;
+    --secondary-foreground: 180 30% 80%;
+
+    --accent: 150 20% 25%;
+    --accent-foreground: 150 40% 80%;
+
+    --muted: 215 20% 15%;
+    --muted-foreground: 215 10% 60%;
+
+    --destructive: 350 75% 65%;
+    --destructive-foreground: 215 30% 8%;
+
+    --border: 215 20% 18%;
+    --input: 215 20% 18%;
+    --ring: 210 100% 70%;
+
+    /* Dark Mode Wellness Colors */
+    --wellness-calm: 210 80% 60%;
+    --wellness-serene: 180 50% 55%;
+    --wellness-peaceful: 150 40% 60%;
+    --wellness-gentle: 120 35% 65%;
+    --wellness-warm: 45 70% 65%;
+
+    /* Dark Glass Effects */
+    --glass-bg: 0 0% 0% / 0.2;
+    --glass-border: 0 0% 100% / 0.1;
+    --glass-shadow: 0 0% 0% / 0.3;
+
+    /* Dark Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--wellness-calm)), hsl(var(--wellness-serene)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--wellness-peaceful)), hsl(var(--wellness-gentle)));
+    --gradient-warm: linear-gradient(135deg, hsl(var(--wellness-warm)), hsl(var(--wellness-peaceful)));
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+    --gradient-shimmer: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border transition-colors duration-300;
+  }
+
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Advanced Button Variants */
+  .btn-primary {
+    @apply bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium px-6 py-3 rounded-xl 
+           shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 
+           transition-all duration-300 border border-blue-400/20 backdrop-blur-sm;
+  }
+
+  .btn-secondary {
+    @apply bg-gradient-to-r from-teal-400 to-teal-500 text-white font-medium px-6 py-3 rounded-xl 
+           shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 
+           transition-all duration-300 border border-teal-300/20 backdrop-blur-sm;
+  }
+
+  .btn-glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 text-foreground font-medium 
+           px-6 py-3 rounded-xl hover:bg-white/20 transform hover:scale-105 hover:-translate-y-1 
+           transition-all duration-300 shadow-lg hover:shadow-xl;
+  }
+
+  .btn-hero {
+    @apply bg-gradient-to-r from-blue-600 via-purple-600 to-teal-600 text-white font-bold 
+           px-8 py-4 rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-110 
+           hover:-translate-y-2 transition-all duration-500 border border-white/30 
+           backdrop-blur-sm relative overflow-hidden;
+  }
+
+  /* Glass Card Effects */
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl 
+           shadow-xl hover:shadow-2xl transition-all duration-300 
+           hover:bg-white/15 hover:-translate-y-1;
+  }
+
+  .glass-nav {
+    @apply bg-white/80 backdrop-blur-xl border-b border-white/20 
+           shadow-lg transition-all duration-300;
+  }
+
+  /* Animated Borders */
+  .animated-border {
+    @apply relative overflow-hidden rounded-xl;
+  }
+
+  .animated-border::before {
+    @apply absolute inset-0 rounded-xl;
+    content: '';
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+  }
+
+  /* 3D Tilt Effect */
+  .tilt-card {
+    transform-style: preserve-3d;
+    transition: transform 0.3s ease;
+  }
+
+  .tilt-card:hover {
+    transform: perspective(1000px) rotateX(5deg) rotateY(5deg) translateZ(20px);
+  }
+
+  /* Shimmer Loading */
+  .shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .shimmer-dark {
+    background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Text Reveal Animations */
+  .text-reveal {
+    overflow: hidden;
+  }
+
+  .text-reveal-item {
+    transform: translateY(100%);
+    animation: textReveal 0.8s ease-out forwards;
+  }
+
+  .typing-effect {
+    /* Removed auto-typing animation */
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  /* Interactive Background Elements */
+  .floating-elements {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .floating-element {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.1), transparent);
+    animation: float 6s ease-in-out infinite;
+  }
+
+  /* Page Transitions */
+  .page-enter {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+
+  .page-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .page-exit {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .page-exit-active {
+    opacity: 0;
+    transform: translateX(-50px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  /* Modal Animations */
+  .modal-overlay {
+    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+  }
+
+  /* Sidebar Animations */
+  .sidebar-enter {
+    transform: translateX(-100%);
+  }
+
+  .sidebar-enter-active {
+    transform: translateX(0);
+    transition: transform 0.3s ease-out;
+  }
+
+  .sidebar-exit {
+    transform: translateX(0);
+  }
+
+  .sidebar-exit-active {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes textReveal {
+  to { transform: translateY(0); }
+}
+
+@keyframes typing {
+  0%, 50% { width: 0; }
+  100% { width: 100%; }
+}
+
+@keyframes blink {
+  0%, 50% { border-color: currentColor; }
+  51%, 100% { border-color: transparent; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-20px) rotate(120deg); }
+  66% { transform: translateY(10px) rotate(240deg); }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Gradient Animation */
+.gradient-animated {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
