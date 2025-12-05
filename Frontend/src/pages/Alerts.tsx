@@ -1,74 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { AlertTriangle, Bell, Clock, Eye, MessageCircle, Shield } from 'lucide-react';
+import { AlertTriangle, Bell, Clock, Eye, MessageCircle, Shield, RefreshCw } from 'lucide-react';
+import { getPendingAlerts } from '@/services/api';
+import { toast } from 'sonner';
+
+interface Alert {
+  id: number;
+  student_id: string;
+  studentName: string;
+  type: string;
+  severity: string;
+  message: string;
+  status: string;
+  triggeredAt: string;
+  actionRequired: string;
+  testType: string;
+}
 
 export const Alerts = () => {
-  const alerts = [
-    {
-      id: 1,
-      type: "High Risk Score",
-      severity: "Critical",
-      studentName: "Emily Rodriguez",
-      studentId: "ST2024003",
-      message: "Depression screening score of 18 indicates severe depression symptoms",
-      triggeredAt: "2024-01-15 11:45 AM",
-      status: "Unread",
-      actionRequired: "Immediate intervention recommended",
-      testType: "PHQ-9"
-    },
-    {
-      id: 2,
-      type: "Crisis Keywords",
-      severity: "Critical", 
-      studentName: "Marcus Johnson",
-      studentId: "ST2024007",
-      message: "Self-harm keywords detected in assessment responses",
-      triggeredAt: "2024-01-15 10:20 AM",
-      status: "In Review",
-      actionRequired: "Contact student immediately",
-      testType: "Custom Assessment"
-    },
-    {
-      id: 3,
-      type: "Missed Appointments",
-      severity: "High",
-      studentName: "Sarah Chen",
-      studentId: "ST2024001",
-      message: "Student has missed 3 consecutive counseling appointments",
-      triggeredAt: "2024-01-14 03:30 PM",
-      status: "Acknowledged",
-      actionRequired: "Follow-up contact needed",
-      testType: "Attendance Tracking"
-    },
-    {
-      id: 4,
-      type: "Score Deterioration",
-      severity: "Medium",
-      studentName: "Alex Thompson",
-      studentId: "ST2024005",
-      message: "Anxiety scores increased by 40% over past 2 weeks",
-      triggeredAt: "2024-01-14 09:15 AM",
-      status: "Read",
-      actionRequired: "Schedule check-in session",
-      testType: "GAD-7"
-    },
-    {
-      id: 5,
-      type: "Repeated Testing",
-      severity: "Low",
-      studentName: "Jessica Wang",
-      studentId: "ST2024009",
-      message: "Student completed same assessment 5 times in 24 hours",
-      triggeredAt: "2024-01-13 07:45 PM",
-      status: "Read",
-      actionRequired: "Monitor for unusual behavior",
-      testType: "Stress Assessment"
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadAlerts = async () => {
+    try {
+      setIsRefreshing(true);
+      const data = await getPendingAlerts(50);
+      setAlerts(data);
+    } catch (error: any) {
+      console.error('Error loading alerts:', error);
+      toast.error('Failed to load alerts');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadAlerts();
+    // Refresh alerts every 30 seconds
+    const interval = setInterval(loadAlerts, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -112,6 +89,15 @@ export const Alerts = () => {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="glass-card"
+              onClick={loadAlerts}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
             <Button variant="outline" className="glass-card">
               <Shield className="w-4 h-4 mr-2" />
               Alert Settings
@@ -131,8 +117,8 @@ export const Alerts = () => {
               <Bell className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">23</div>
-              <p className="text-xs text-muted-foreground">+7 from yesterday</p>
+              <div className="text-2xl font-bold">{alerts.length}</div>
+              <p className="text-xs text-muted-foreground">Total pending alerts</p>
             </CardContent>
           </Card>
           
@@ -142,7 +128,9 @@ export const Alerts = () => {
               <AlertTriangle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">5</div>
+              <div className="text-2xl font-bold text-red-600">
+                {alerts.filter(a => a.severity === 'Critical').length}
+              </div>
               <p className="text-xs text-muted-foreground">Immediate attention</p>
             </CardContent>
           </Card>
@@ -153,7 +141,9 @@ export const Alerts = () => {
               <Eye className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">
+                {alerts.filter(a => a.status === 'Unread').length}
+              </div>
               <p className="text-xs text-muted-foreground">Require review</p>
             </CardContent>
           </Card>
@@ -171,8 +161,24 @@ export const Alerts = () => {
         </div>
 
         {/* Alerts List */}
-        <div className="space-y-4">
-          {alerts.map((alert) => (
+        {isLoading ? (
+          <Card className="glass-card">
+            <CardContent className="py-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading alerts...</p>
+            </CardContent>
+          </Card>
+        ) : alerts.length === 0 ? (
+          <Card className="glass-card">
+            <CardContent className="py-12 text-center">
+              <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg font-medium mb-2">No alerts</p>
+              <p className="text-muted-foreground">All clear! No pending alerts at this time.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {alerts.map((alert) => (
             <Card key={alert.id} className={`glass-card tilt-card transition-all ${alert.status === 'Unread' ? 'ring-2 ring-red-500/20' : ''}`}>
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -197,8 +203,8 @@ export const Alerts = () => {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium text-sm">{alert.studentName}</p>
-                          <p className="text-xs text-muted-foreground">{alert.studentId}</p>
+                        <p className="font-medium text-sm">{alert.studentName}</p>
+                        <p className="text-xs text-muted-foreground">{alert.student_id}</p>
                         </div>
                       </div>
                     </div>
@@ -248,8 +254,9 @@ export const Alerts = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
