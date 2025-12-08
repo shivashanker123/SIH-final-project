@@ -116,8 +116,134 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
       setLoading(true);
       setError(null);
       try {
+        // Check if admin mode - must have both admin_token and admin_community_mode flag
+        const adminToken = localStorage.getItem('admin_token');
+        const studentToken = localStorage.getItem('student_token');
+        const adminEmail = localStorage.getItem('admin_email');
+        const adminCommunityMode = localStorage.getItem('admin_community_mode') === 'true';
+        
+        console.log('🔍 Community load check:', {
+          adminToken: !!adminToken,
+          studentToken: !!studentToken,
+          adminEmail,
+          adminCommunityMode,
+          studentId
+        });
+        
+        // If student is accessing (has student token, no admin token), clear admin mode flag
+        if (studentToken && !adminToken) {
+          if (adminCommunityMode) {
+            localStorage.removeItem('admin_community_mode');
+          }
+        }
+        
+        // Only treat as admin if admin token exists AND admin_community_mode is set AND no student token
+        const isAdminMode = adminToken && !studentToken && adminCommunityMode && adminEmail;
+        
+        console.log('🔍 isAdminMode:', isAdminMode);
+        
         // Load user profile
-        const profile = await getUserProfile(studentId);
+        let profile;
+        if (isAdminMode && adminEmail) {
+          // For admin, create a profile with Admin(username) format
+          const username = adminEmail.split('@')[0]; // Extract username from email
+          console.log('🔍 Admin username extracted:', username, 'from email:', adminEmail);
+          
+          // Always create admin profile with Admin(username) format
+          const adminName = `Admin(${username})`;
+          console.log('🔍 Admin name to use:', adminName);
+          
+          try {
+            // Try to get existing profile first
+            profile = await getUserProfile(studentId);
+            console.log('🔍 Got existing profile, current name:', profile.anonymized_name);
+            
+            // Always override the name to show "Admin(username)" regardless of what backend returns
+            profile = {
+              ...profile,
+              anonymized_name: adminName,
+              name: adminName
+            };
+            console.log('🔍 Profile name overridden to:', profile.anonymized_name);
+            
+            // Update the profile in backend to persist the admin name
+            try {
+              const updateResult = await updateUserProfile(studentId, {
+                bio: profile.bio || 'Administrator',
+                major: profile.major || 'Administration',
+                anonymized_name: adminName
+              });
+              console.log('🔍 Updated admin profile in backend, result:', updateResult.anonymized_name);
+              // Use the updated profile from backend
+              profile = updateResult;
+              // Ensure name is still Admin(username) format
+              profile.anonymized_name = adminName;
+              profile.name = adminName;
+            } catch (updateError) {
+              console.error('🔍 Failed to update profile in backend:', updateError);
+              // Continue with local override even if update fails
+            }
+          } catch (e) {
+            console.log('🔍 No existing profile, creating admin profile');
+            // If profile doesn't exist, create a basic one for admin
+            profile = {
+              student_id: studentId,
+              anonymized_name: adminName,
+              name: adminName,
+              email: adminEmail,
+              bio: 'Administrator',
+              major: 'Administration',
+              year: null,
+              interests: [],
+              privacy_settings: {
+                show_email: false,
+                show_major: true,
+                show_year: false
+              },
+              followers_count: 0,
+              following_count: 0,
+              communities_count: 0,
+              posts_count: 0,
+              join_date: new Date().toISOString()
+            };
+            
+            // Try to create/update profile in backend
+            try {
+              await updateUserProfile(studentId, {
+                bio: 'Administrator',
+                major: 'Administration',
+                anonymized_name: adminName
+              });
+              console.log('🔍 Created admin profile in backend');
+            } catch (createError) {
+              console.warn('🔍 Failed to create profile in backend (non-critical):', createError);
+            }
+          }
+          
+          // Final safety check - ensure name is always Admin(username)
+          if (profile.anonymized_name !== adminName) {
+            console.warn('🔍 Name mismatch detected, forcing correction:', profile.anonymized_name, '->', adminName);
+            profile.anonymized_name = adminName;
+            profile.name = adminName;
+          }
+          
+          console.log('🔍 Final admin profile name:', profile.anonymized_name);
+        } else {
+          // Regular student profile - load normally
+          console.log('🔍 Loading regular student profile (not admin mode)');
+          profile = await getUserProfile(studentId);
+        }
+        // Final check: if admin mode, ensure name is always Admin(username)
+        if (isAdminMode && adminEmail && profile) {
+          const username = adminEmail.split('@')[0];
+          const expectedAdminName = `Admin(${username})`;
+          if (profile.anonymized_name !== expectedAdminName) {
+            console.warn('🔍 Profile name mismatch after load, forcing correction:', profile.anonymized_name, '->', expectedAdminName);
+            profile.anonymized_name = expectedAdminName;
+            profile.name = expectedAdminName;
+          }
+        }
+        
         setUserProfile(profile);
         
         // Load communities (initially empty) - don't fail if this errors
@@ -132,10 +258,19 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
         // Load posts - don't fail if this errors
         try {
           const postsData = await listPosts(studentId);
-          setPosts(postsData);
+          console.log('Loaded posts:', postsData?.length || 0, 'posts');
+          setPosts(postsData || []);
         } catch (e) {
-          console.warn('Failed to load posts:', e);
-          setPosts([]);
+          console.error('Failed to load posts:', e);
+          // Try to load posts without community filter as fallback
+          try {
+            const allPosts = await listPosts(studentId, undefined, 100, 0);
+            console.log('Loaded all posts (fallback):', allPosts?.length || 0, 'posts');
+            setPosts(allPosts || []);
+          } catch (fallbackError) {
+            console.error('Fallback post loading also failed:', fallbackError);
+            setPosts([]);
+          }
         }
         
         // Load all connections - don't fail if this errors
@@ -162,6 +297,29 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
     
     loadData();
   }, [studentId]);
+
+  // Ensure admin name persists even if profile is updated elsewhere
+  useEffect(() => {
+    const adminToken = localStorage.getItem('admin_token');
+    const studentToken = localStorage.getItem('student_token');
+    const adminEmail = localStorage.getItem('admin_email');
+    const adminCommunityMode = localStorage.getItem('admin_community_mode') === 'true';
+    const isAdminMode = adminToken && !studentToken && adminCommunityMode && adminEmail;
+
+    if (isAdminMode && adminEmail && userProfile) {
+      const username = adminEmail.split('@')[0];
+      const expectedAdminName = `Admin(${username})`;
+      
+      if (userProfile.anonymized_name !== expectedAdminName) {
+        console.log('🔍 useEffect: Correcting admin name from', userProfile.anonymized_name, 'to', expectedAdminName);
+        setUserProfile({
+          ...userProfile,
+          anonymized_name: expectedAdminName,
+          name: expectedAdminName
+        });
+      }
+    }
+  }, [userProfile]);
   
   // Load chat messages when a user is selected
   useEffect(() => {
@@ -281,7 +439,10 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
     if (!studentId || !userProfile) return;
     
     try {
-      const updated = await updateUserProfile(studentId, newBio, userProfile.major);
+      const updated = await updateUserProfile(studentId, { 
+        bio: newBio, 
+        major: userProfile.major || null 
+      });
       setUserProfile(updated);
       setEditingBio(false);
       toast.success('Bio updated!');

@@ -21,11 +21,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { Community } from '@/components/Community';
+import { StudentProvider } from '@/contexts/StudentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   Users, 
   ClipboardList, 
@@ -36,7 +40,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  Eye
+  Eye,
+  MessageSquare
 } from 'lucide-react';
 import { ShimmerCard } from '@/components/LoadingSpinner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -132,6 +137,7 @@ type DailyWellnessData = {
 export const AdminDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCommunityMode, setIsCommunityMode] = useState(false);
   
   // ============================================================================
   // STATE VARIABLES - Replace with real API data
@@ -151,23 +157,45 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      // Set a timeout to ensure loading state is always cleared
+      const timeoutId = setTimeout(() => {
+        console.warn('Dashboard data fetch timeout - clearing loading state');
+        setIsLoading(false);
+      }, 8000); // 8 second safety timeout
+
       try {
         setIsLoading(true);
         
-        // Fetch alerts (with error handling)
-        try {
-          const alerts = await getPendingAlerts(10);
-          setRecentAlerts(alerts);
-        } catch (error) {
-          console.error('Error fetching alerts:', error);
+        // Fetch all data in parallel with individual error handling
+        const [alertsResult, statsResult, monthlyResult, dailyResult] = await Promise.allSettled([
+          getPendingAlerts(10).catch(err => {
+            console.error('Error fetching alerts:', err);
+            return [];
+          }),
+          getDashboardStats().catch(err => {
+            console.error('Error fetching dashboard stats:', err);
+            return null;
+          }),
+          getMonthlyWellness(6).catch(err => {
+            console.error('Error fetching monthly wellness:', err);
+            return [];
+          }),
+          getDailyWellness(7).catch(err => {
+            console.error('Error fetching daily wellness:', err);
+            return [];
+          })
+        ]);
+
+        // Process alerts
+        if (alertsResult.status === 'fulfilled') {
+          setRecentAlerts(alertsResult.value);
+        } else {
           setRecentAlerts([]);
         }
-        
-        // Fetch dashboard stats (with error handling)
-        try {
-          const statsData = await getDashboardStats();
-          
-          // Transform stats to StatCard format
+
+        // Process stats
+        if (statsResult.status === 'fulfilled' && statsResult.value) {
+          const statsData = statsResult.value;
           const statsCards: StatCard[] = [
             {
               title: "Total Students",
@@ -199,32 +227,27 @@ export const AdminDashboard: React.FC = () => {
             }
           ];
           setStats(statsCards);
-        } catch (error) {
-          console.error('Error fetching dashboard stats:', error);
-          // Keep empty stats array - will show default cards
         }
-        
-        // Fetch wellness data (with error handling)
-        try {
-          const monthlyData = await getMonthlyWellness(6);
-          setWellnessData(monthlyData);
-        } catch (error) {
-          console.error('Error fetching monthly wellness:', error);
+
+        // Process wellness data
+        if (monthlyResult.status === 'fulfilled') {
+          setWellnessData(monthlyResult.value);
+        } else {
           setWellnessData([]);
         }
-        
-        try {
-          const dailyData = await getDailyWellness(7);
-          setDailyWellnessData(dailyData);
-        } catch (error) {
-          console.error('Error fetching daily wellness:', error);
+
+        if (dailyResult.status === 'fulfilled') {
+          setDailyWellnessData(dailyResult.value);
+        } else {
           setDailyWellnessData([]);
         }
         
+        clearTimeout(timeoutId);
         setIsLoading(false);
       } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
         setError(error?.message || 'Failed to load dashboard data');
+        clearTimeout(timeoutId);
         setIsLoading(false);
       }
     };
@@ -271,11 +294,44 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
+  // Show community mode if toggled
+  if (isCommunityMode) {
+    // Ensure admin data is available for community
+    const adminEmail = localStorage.getItem('admin_email');
+    const adminId = localStorage.getItem('admin_id');
+    if (adminEmail && adminId) {
+      // Store admin info for community access
+      localStorage.setItem('admin_community_mode', 'true');
+      // Set studentId in localStorage so Community component can access it
+      localStorage.setItem('studentId', adminId);
+    }
+    // Wrap Community in StudentProvider so useStudent hook works
+    return (
+      <StudentProvider>
+        <Community onToggle={() => setIsCommunityMode(false)} />
+      </StudentProvider>
+    );
+  }
+
   return (
     <DashboardLayout userType="admin">
       <div className="space-y-8 animate-fade-in">
-        {/* Welcome Header */}
-        <div className="glass-card p-8 text-center tilt-card">
+        {/* Welcome Header with Community Toggle */}
+        <div className="glass-card p-8 text-center tilt-card relative">
+          <div className="absolute top-4 right-4 flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-gray-700/30 px-4 py-2 rounded-lg border border-gray-600/50">
+              <MessageSquare className="w-4 h-4 text-cyan-400" />
+              <Label htmlFor="community-toggle" className="text-sm font-medium text-white cursor-pointer">
+                Student Community
+              </Label>
+              <Switch
+                id="community-toggle"
+                checked={isCommunityMode}
+                onCheckedChange={setIsCommunityMode}
+                className="data-[state=checked]:bg-cyan-500"
+              />
+            </div>
+          </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-wellness-serene to-wellness-peaceful bg-clip-text text-transparent mb-4">
             Wellness Analytics Dashboard
           </h1>

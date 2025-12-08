@@ -42,6 +42,8 @@ export const AdminLogin: React.FC = () => {
       });
       
       setIsLoading(false);
+      
+      // Navigate to admin dashboard
       navigate('/admin-dashboard');
     } catch (err: any) {
       const errorMessage = err.message || 'Authentication failed. Please try again.';

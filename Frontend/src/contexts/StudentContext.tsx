@@ -10,11 +10,20 @@ const StudentContext = createContext<StudentContextType | undefined>(undefined);
 export const StudentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [studentId, setStudentIdState] = useState<string | null>(() => {
     // Initialize from localStorage if available AND token exists
+    // Check both student and admin tokens
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('student_token');
-      const id = localStorage.getItem('studentId');
-      // Only return studentId if token exists (authenticated)
-      return token && id ? id : null;
+      const studentToken = localStorage.getItem('student_token');
+      const adminToken = localStorage.getItem('admin_token');
+      const studentId = localStorage.getItem('studentId');
+      const adminId = localStorage.getItem('admin_id');
+      
+      // Return studentId if student token exists, or adminId if admin token exists
+      if (studentToken && studentId) {
+        return studentId;
+      } else if (adminToken && adminId) {
+        return adminId;
+      }
+      return null;
     }
     return null;
   });
@@ -23,12 +32,18 @@ export const StudentProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     const syncWithStorage = () => {
       if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('student_token');
-        const storedId = localStorage.getItem('studentId');
-        if (token && storedId && storedId !== studentId) {
-          setStudentIdState(storedId);
-        } else if (!token && studentId) {
-          // Token was removed, clear state
+        const studentToken = localStorage.getItem('student_token');
+        const adminToken = localStorage.getItem('admin_token');
+        const storedStudentId = localStorage.getItem('studentId');
+        const storedAdminId = localStorage.getItem('admin_id');
+        
+        // Check student token first, then admin token
+        if (studentToken && storedStudentId && storedStudentId !== studentId) {
+          setStudentIdState(storedStudentId);
+        } else if (adminToken && storedAdminId && storedAdminId !== studentId) {
+          setStudentIdState(storedAdminId);
+        } else if (!studentToken && !adminToken && studentId) {
+          // Both tokens removed, clear state
           setStudentIdState(null);
         }
       }

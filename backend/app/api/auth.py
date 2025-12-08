@@ -202,6 +202,12 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     # Generate token
     token = generate_token()
     
+    # Ensure admin users have anonymized names for community access
+    if student.is_admin and (not student.anonymized_name or 'admin' in student.anonymized_name.lower()):
+        student.anonymized_name = generate_anonymized_name(student.name or student.email)
+        db.commit()
+        logger.info("admin_anonymized_name_generated", student_id=student.student_id, anonymized_name=student.anonymized_name)
+    
     logger.info("student_logged_in", student_id=student.student_id, email=request.email)
     
     return AuthResponse(

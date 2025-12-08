@@ -20,6 +20,7 @@ import { Results } from "./pages/Results";
 import { StudentRequests } from "./pages/StudentRequests";
 import { Alerts } from "./pages/Alerts";
 import { Journal } from "./pages/Journal";
+import { Community } from "./components/Community";
 import NotFound from "./pages/NotFound";
 
 // Lazy load AdminDashboard to prevent it from breaking the entire app
@@ -145,6 +146,14 @@ const App = () => {
               <Route path="/admin-dashboard/resources" element={<ResourcesAndSelfCare />} />
               <Route path="/admin-dashboard/results" element={<Results />} />
               <Route path="/admin-dashboard/requests" element={<StudentRequests />} />
+              <Route 
+                path="/admin-dashboard/community" 
+                element={
+                  <ProtectedRoute>
+                    <Community onToggle={() => window.history.back()} />
+                  </ProtectedRoute>
+                } 
+              />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

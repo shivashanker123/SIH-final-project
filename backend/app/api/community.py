@@ -39,6 +39,7 @@ class UserProfileResponse(BaseModel):
 class UserProfileUpdate(BaseModel):
     bio: Optional[str] = None
     major: Optional[str] = None
+    anonymized_name: Optional[str] = None
 
 
 class CommunityCreate(BaseModel):
@@ -219,6 +220,8 @@ async def update_user_profile(
         student.bio = update.bio
     if update.major is not None:
         student.major = update.major
+    if update.anonymized_name is not None:
+        student.anonymized_name = update.anonymized_name
     
     db.commit()
     db.refresh(student)
