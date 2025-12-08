@@ -48,3 +48,15 @@ openai-whisper>=20231117
 SpeechRecognition==3.10.0
 pyaudio==0.2.14
 openai-whisper>=20231117
+openai-whisper>=20231117
+
+# Speech Recognition
+SpeechRecognition==3.10.0
+pyaudio==0.2.14
+openai-whisper>=20231117
+openai-whisper>=20231117
+
+# Speech Recognition
+SpeechRecognition==3.10.0
+pyaudio==0.2.14
+openai-whisper>=20231117

@@ -41,6 +41,7 @@ import {
 import { ShimmerCard } from '@/components/LoadingSpinner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { getPendingAlerts, getOutcomeSummary } from '@/services/api';
+import { getDashboardStats, getMonthlyWellness, getDailyWellness } from '@/services/adminApi';
 
 // ============================================================================
 // DATA TYPE TEMPLATES - Replace with real API calls
@@ -130,6 +131,7 @@ type DailyWellnessData = {
 
 export const AdminDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // ============================================================================
   // STATE VARIABLES - Replace with real API data
@@ -148,30 +150,106 @@ export const AdminDashboard: React.FC = () => {
   const [dailyWellnessData, setDailyWellnessData] = useState<DailyWellnessData[]>([]);
 
   useEffect(() => {
-    // TODO: Replace with real API calls
     const fetchDashboardData = async () => {
       try {
-        // Example: Fetch alerts
-        // const alerts = await getPendingAlerts(10);
-        // setRecentAlerts(alerts);
+        setIsLoading(true);
         
-        // Example: Fetch outcome summary for stats
-        // const outcomeSummary = await getOutcomeSummary(30);
-        // setStats([...]); // Transform outcomeSummary to stats format
+        // Fetch alerts (with error handling)
+        try {
+          const alerts = await getPendingAlerts(10);
+          setRecentAlerts(alerts);
+        } catch (error) {
+          console.error('Error fetching alerts:', error);
+          setRecentAlerts([]);
+        }
         
-        // Example: Fetch wellness data
-        // const monthlyData = await fetch('/api/analytics/wellness/monthly').then(r => r.json());
-        // setWellnessData(monthlyData);
+        // Fetch dashboard stats (with error handling)
+        try {
+          const statsData = await getDashboardStats();
+          
+          // Transform stats to StatCard format
+          const statsCards: StatCard[] = [
+            {
+              title: "Total Students",
+              value: statsData.total_students.toString(),
+              change: "+0%",
+              icon: Users,
+              color: "text-blue-600"
+            },
+            {
+              title: "Active Sessions",
+              value: statsData.active_sessions.toString(),
+              change: "+0%",
+              icon: Calendar,
+              color: "text-green-600"
+            },
+            {
+              title: "Pending Alerts",
+              value: statsData.pending_alerts.toString(),
+              change: "+0%",
+              icon: Clock,
+              color: "text-orange-600"
+            },
+            {
+              title: "High-Risk Cases",
+              value: statsData.high_risk_cases.toString(),
+              change: "+0%",
+              icon: AlertTriangle,
+              color: "text-red-600"
+            }
+          ];
+          setStats(statsCards);
+        } catch (error) {
+          console.error('Error fetching dashboard stats:', error);
+          // Keep empty stats array - will show default cards
+        }
+        
+        // Fetch wellness data (with error handling)
+        try {
+          const monthlyData = await getMonthlyWellness(6);
+          setWellnessData(monthlyData);
+        } catch (error) {
+          console.error('Error fetching monthly wellness:', error);
+          setWellnessData([]);
+        }
+        
+        try {
+          const dailyData = await getDailyWellness(7);
+          setDailyWellnessData(dailyData);
+        } catch (error) {
+          console.error('Error fetching daily wellness:', error);
+          setDailyWellnessData([]);
+        }
         
         setIsLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
+        setError(error?.message || 'Failed to load dashboard data');
         setIsLoading(false);
       }
     };
 
     fetchDashboardData();
   }, []);
+
+  // Error boundary - show error message if critical error
+  if (error && !isLoading) {
+    return (
+      <DashboardLayout userType="admin">
+        <div className="space-y-8 animate-fade-in">
+          <Card className="glass-card border-0">
+            <CardHeader>
+              <CardTitle className="text-red-500">Error Loading Dashboard</CardTitle>
+              <CardDescription>{error}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => window.location.reload()}>Retry</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (isLoading) {
     return (

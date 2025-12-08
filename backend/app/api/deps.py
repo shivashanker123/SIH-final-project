@@ -50,3 +50,4 @@ async def get_current_counselor(
     logger.debug("counselor_authenticated", counselor_id=counselor_id)
     return student
 
+
