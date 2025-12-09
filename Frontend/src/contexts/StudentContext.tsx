@@ -9,35 +9,65 @@ const StudentContext = createContext<StudentContextType | undefined>(undefined);
 
 export const StudentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [studentId, setStudentIdState] = useState<string | null>(() => {
-    // Initialize from localStorage - STUDENT-ONLY (ignore admin tokens completely)
+    // Initialize from localStorage - PRIORITIZE STUDENT over admin
     if (typeof window !== 'undefined') {
       const studentToken = localStorage.getItem('student_token');
+      const adminToken = localStorage.getItem('admin_token');
       const storedStudentId = localStorage.getItem('studentId');
+      const adminId = localStorage.getItem('admin_id');
+      const adminCommunityMode = localStorage.getItem('admin_community_mode') === 'true';
       
-      // ONLY use student token and student ID - never use admin tokens
+      // CRITICAL: Student credentials ALWAYS take precedence
       if (studentToken && storedStudentId && !storedStudentId.startsWith('admin_')) {
+        // If admin flags exist but student token is present, clear admin flags
+        if (adminCommunityMode) {
+          localStorage.removeItem('admin_community_mode');
+        }
         return storedStudentId;
       }
+      
+      // Only use admin ID if no student token exists and admin community mode is active
+      if (adminCommunityMode && adminToken && adminId && !studentToken) {
+        return adminId;
+      }
+      
       return null;
     }
     return null;
   });
 
-  // Sync with localStorage on mount - STUDENT-ONLY
+  // Sync with localStorage on mount - support both students and admins
   useEffect(() => {
     const syncWithStorage = () => {
       if (typeof window !== 'undefined') {
         const studentToken = localStorage.getItem('student_token');
+        const adminToken = localStorage.getItem('admin_token');
         const storedStudentId = localStorage.getItem('studentId');
+        const adminId = localStorage.getItem('admin_id');
+        const adminCommunityMode = localStorage.getItem('admin_community_mode') === 'true';
         
-        // ONLY sync student tokens - completely ignore admin tokens
+        // CRITICAL: Student credentials ALWAYS take precedence
         if (studentToken && storedStudentId && !storedStudentId.startsWith('admin_')) {
-          // Only update if it's different and it's a student ID
+          // If admin flags exist but student token is present, clear admin flags
+          if (adminCommunityMode) {
+            localStorage.removeItem('admin_community_mode');
+          }
+          // Sync student tokens - only for student IDs
           if (storedStudentId !== studentId) {
             setStudentIdState(storedStudentId);
           }
-        } else if (!studentToken && studentId) {
-          // Student token removed, clear state
+        } else if (adminCommunityMode && adminToken && adminId && !studentToken) {
+          // Only use admin ID if no student token exists
+          if (adminId !== studentId) {
+            setStudentIdState(adminId);
+          }
+        } else if (storedStudentId && storedStudentId.startsWith('admin_') && adminToken && adminId && !studentToken) {
+          // Fallback: if storedStudentId is admin ID and we have admin token, use it
+          if (adminId !== studentId) {
+            setStudentIdState(adminId);
+          }
+        } else if (!studentToken && !adminToken && studentId) {
+          // Both tokens removed, clear state
           setStudentIdState(null);
         }
       }

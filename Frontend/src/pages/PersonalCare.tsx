@@ -413,7 +413,11 @@ End of Chat Export
   }, []);
 
   if (isCommunityMode) {
-    return <Community onToggle={() => setIsCommunityMode(false)} />;
+    return <Community onToggle={() => {
+      // Ensure admin flags are cleared when student accesses community
+      localStorage.removeItem('admin_community_mode');
+      setIsCommunityMode(false);
+    }} />;
   }
 
   return (

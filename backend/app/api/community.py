@@ -214,6 +214,8 @@ async def update_user_profile(
     db: Session = Depends(get_db)
 ):
     """Update user profile."""
+    from app.api.auth import generate_anonymized_name
+    
     student = get_student_by_id(db, student_id)
     
     if update.bio is not None:
@@ -221,7 +223,16 @@ async def update_user_profile(
     if update.major is not None:
         student.major = update.major
     if update.anonymized_name is not None:
-        student.anonymized_name = update.anonymized_name
+        if student.is_admin:
+            # Ensure admin names maintain (admin) suffix
+            if not update.anonymized_name.endswith('(admin)'):
+                # Extract username and re-format
+                username = update.anonymized_name.replace('(admin)', '').strip()
+                student.anonymized_name = generate_anonymized_name(username, is_admin=True)
+            else:
+                student.anonymized_name = update.anonymized_name
+        else:
+            student.anonymized_name = update.anonymized_name
     
     db.commit()
     db.refresh(student)

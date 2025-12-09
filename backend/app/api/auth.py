@@ -51,9 +51,14 @@ def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def generate_anonymized_name(name: str) -> str:
+def generate_anonymized_name(name: str, is_admin: bool = False) -> str:
     """Generate an anonymized name for community display."""
-    # Take first letter of first name and last name, add random numbers
+    if is_admin:
+        # For admins: use name field directly with (admin) suffix
+        username = name.strip() if name else "Admin"
+        return f"{username}(admin)"
+    
+    # For students: Take first letter of first name and last name, add random numbers
     parts = name.strip().split()
     if len(parts) >= 2:
         first_initial = parts[0][0].upper()
@@ -203,8 +208,9 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     token = generate_token()
     
     # Ensure admin users have anonymized names for community access
-    if student.is_admin and (not student.anonymized_name or 'admin' in student.anonymized_name.lower()):
-        student.anonymized_name = generate_anonymized_name(student.name or student.email)
+    if student.is_admin:
+        # Always set admin name format on login: "username"(admin)
+        student.anonymized_name = generate_anonymized_name(student.name or student.email, is_admin=True)
         db.commit()
         logger.info("admin_anonymized_name_generated", student_id=student.student_id, anonymized_name=student.anonymized_name)
     

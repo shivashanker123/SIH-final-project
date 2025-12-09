@@ -33,7 +33,7 @@ def create_admin_user():
             email="admin@gmail.com",
             password_hash=password_hash,
             name="Administrator",
-            anonymized_name="Admin",
+            anonymized_name="Administrator(admin)",
             is_admin=True,
             baseline_profile={},
             session_count=0

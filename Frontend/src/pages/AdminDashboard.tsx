@@ -299,16 +299,42 @@ export const AdminDashboard: React.FC = () => {
     // Ensure admin data is available for community
     const adminEmail = localStorage.getItem('admin_email');
     const adminId = localStorage.getItem('admin_id');
-    if (adminEmail && adminId) {
+    const adminToken = localStorage.getItem('admin_token');
+    if (adminEmail && adminId && adminToken) {
       // Store admin info for community access
       localStorage.setItem('admin_community_mode', 'true');
       // Set studentId in localStorage so Community component can access it
       localStorage.setItem('studentId', adminId);
+      console.log('🔧 AdminDashboard: Set admin community mode', {
+        adminId,
+        adminEmail,
+        adminToken: !!adminToken,
+        adminCommunityMode: 'true'
+      });
+    } else {
+      console.error('❌ AdminDashboard: Missing admin credentials', {
+        adminEmail: !!adminEmail,
+        adminId: !!adminId,
+        adminToken: !!adminToken
+      });
     }
     // Wrap Community in StudentProvider so useStudent hook works
     return (
       <StudentProvider>
-        <Community onToggle={() => setIsCommunityMode(false)} />
+        <Community onToggle={() => {
+          // Cleanup admin community mode flags when exiting
+          localStorage.removeItem('admin_community_mode');
+          // Restore studentId if it was overwritten by admin ID
+          const studentToken = localStorage.getItem('student_token');
+          const adminId = localStorage.getItem('admin_id');
+          const storedStudentId = localStorage.getItem('studentId');
+          if (storedStudentId === adminId && studentToken) {
+            // If studentId was set to admin ID but student token exists, clear it
+            // The StudentContext will restore the correct student ID
+            localStorage.removeItem('studentId');
+          }
+          setIsCommunityMode(false);
+        }} />
       </StudentProvider>
     );
   }

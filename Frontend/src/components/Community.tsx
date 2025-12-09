@@ -112,34 +112,70 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
   const isLoadingRef = useRef(false);
   const loadedStudentIdRef = useRef<string | null>(null);
 
-  // Load real data from API - STUDENT-ONLY
+  // Load real data from API - Support both students and admins
   useEffect(() => {
-    if (!studentId) {
-      setLoading(false);
-      return;
-    }
-    
-    // CRITICAL: Get actual student ID from localStorage (ignore context if it's wrong)
+    // CRITICAL: Get actual student ID from localStorage FIRST (support both students and admins)
+    // Don't rely only on context studentId - check localStorage directly
     const studentToken = localStorage.getItem('student_token');
+    const adminToken = localStorage.getItem('admin_token');
     const storedStudentId = localStorage.getItem('studentId');
+    const adminId = localStorage.getItem('admin_id');
+    const adminCommunityMode = localStorage.getItem('admin_community_mode') === 'true';
     
-    // Use student ID from localStorage if available, otherwise use context
-    // But NEVER use admin IDs
-    const actualStudentId = (studentToken && storedStudentId && !storedStudentId.startsWith('admin_')) 
-      ? storedStudentId 
-      : (studentId && !studentId.startsWith('admin_') ? studentId : null);
+    // Determine actual ID: prioritize STUDENT if student token exists, otherwise check admin
+    let actualStudentId: string | null = null;
     
-    if (!actualStudentId) {
-      console.error('❌ No valid student ID found');
-      setError('Please log in as a student to access the community.');
-      setLoading(false);
-      return;
+    // CRITICAL: If student token exists, ALWAYS use student credentials (student portal access)
+    if (studentToken && storedStudentId && !storedStudentId.startsWith('admin_')) {
+      // Student accessing community from student portal - clear any admin flags
+      if (adminCommunityMode) {
+        localStorage.removeItem('admin_community_mode');
+        console.log('🧹 Cleared admin_community_mode flag for student access');
+      }
+      actualStudentId = storedStudentId;
+    } else if (adminCommunityMode && adminToken && adminId) {
+      // Admin accessing community from admin dashboard (only if no student token)
+      // Use adminId directly, even if storedStudentId is set to adminId
+      actualStudentId = adminId;
+      console.log('✅ Admin accessing community (adminCommunityMode):', adminId, {
+        adminCommunityMode,
+        adminToken: !!adminToken,
+        adminId,
+        storedStudentId,
+        studentToken: !!studentToken
+      });
+    } else if (storedStudentId && storedStudentId.startsWith('admin_') && adminToken && adminId && !studentToken) {
+      // Fallback: if storedStudentId is admin ID and we have admin token, use it
+      actualStudentId = adminId;
+      console.log('✅ Admin fallback access (storedStudentId is admin):', adminId, {
+        storedStudentId,
+        adminToken: !!adminToken,
+        adminId,
+        studentToken: !!studentToken
+      });
+    } else if (studentId && !studentId.startsWith('admin_')) {
+      // Fallback to context (student only)
+      actualStudentId = studentId;
     }
     
-    // Block admin IDs completely
-    if (actualStudentId.startsWith('admin_')) {
-      console.error('❌ Community: Admin IDs not allowed');
-      setError('Community access is only available for students.');
+    // Early return if no valid ID found (after checking all sources)
+    if (!actualStudentId) {
+      console.error('❌ No valid ID found in useEffect', {
+        studentToken: !!studentToken,
+        adminToken: !!adminToken,
+        storedStudentId,
+        adminId,
+        adminCommunityMode,
+        contextStudentId: studentId
+      });
+      // Only set error if we've confirmed there are truly no credentials
+      // Don't set error if admin credentials might be available but not yet set
+      if (!adminToken && !studentToken) {
+        setError('Please log in to access the community.');
+      } else {
+        // If we have tokens but no ID, it might be a timing issue - don't set error yet
+        console.warn('⚠️ Tokens exist but no ID found - might be timing issue');
+      }
       setLoading(false);
       return;
     }
@@ -173,24 +209,43 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
         });
         const profile = await getUserProfile(actualStudentId);
         
-        // Ensure anonymized_name is set
-        if (!profile.anonymized_name || profile.anonymized_name === 'Anonymous' || profile.anonymized_name === profile.name) {
-          // Generate anonymized_name from student_id
-          const studentIdStr = profile.student_id || actualStudentId;
-          const parts = studentIdStr.split('_');
-          let generatedName = '';
-          if (parts.length > 1) {
-            generatedName = `${parts[0].substring(0, 2).toUpperCase()}${parts[1]?.substring(0, 4) || studentIdStr.substring(studentIdStr.length - 4)}`;
-          } else {
-            generatedName = `${studentIdStr.substring(0, 2).toUpperCase()}${studentIdStr.substring(Math.max(0, studentIdStr.length - 4))}`;
+        // Check if user is admin
+        const isAdmin = actualStudentId.startsWith('admin_') || profile.student_id?.startsWith('admin_');
+        
+        if (isAdmin) {
+          // For admins: ensure name format is "username"(admin)
+          if (!profile.anonymized_name || !profile.anonymized_name.endsWith('(admin)')) {
+            const username = profile.name || 'Admin';
+            const adminName = `${username}(admin)`;
+            profile.anonymized_name = adminName;
+            
+            // Save to database
+            try {
+              await updateUserProfile(actualStudentId, { anonymized_name: adminName });
+            } catch (e) {
+              console.warn('Failed to save admin anonymized_name:', e);
+            }
           }
-          profile.anonymized_name = generatedName;
-          
-          // Save to database
-          try {
-            await updateUserProfile(actualStudentId, { anonymized_name: generatedName });
-          } catch (e) {
-            console.warn('Failed to save anonymized_name:', e);
+        } else {
+          // For students: Ensure anonymized_name is set (existing logic)
+          if (!profile.anonymized_name || profile.anonymized_name === 'Anonymous' || profile.anonymized_name === profile.name) {
+            // Generate anonymized_name from student_id
+            const studentIdStr = profile.student_id || actualStudentId;
+            const parts = studentIdStr.split('_');
+            let generatedName = '';
+            if (parts.length > 1) {
+              generatedName = `${parts[0].substring(0, 2).toUpperCase()}${parts[1]?.substring(0, 4) || studentIdStr.substring(studentIdStr.length - 4)}`;
+            } else {
+              generatedName = `${studentIdStr.substring(0, 2).toUpperCase()}${studentIdStr.substring(Math.max(0, studentIdStr.length - 4))}`;
+            }
+            profile.anonymized_name = generatedName;
+            
+            // Save to database
+            try {
+              await updateUserProfile(actualStudentId, { anonymized_name: generatedName });
+            } catch (e) {
+              console.warn('Failed to save anonymized_name:', e);
+            }
           }
         }
         
@@ -254,7 +309,23 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
     return () => {
       isLoadingRef.current = false;
     };
-  }, [studentId]); // Only depend on studentId - this ensures it only runs when studentId actually changes
+  }, [studentId]); // Depend on studentId, but we also check localStorage directly inside
+  
+  // Additional effect to handle admin community mode changes
+  useEffect(() => {
+    const adminCommunityMode = localStorage.getItem('admin_community_mode') === 'true';
+    const adminToken = localStorage.getItem('admin_token');
+    const adminId = localStorage.getItem('admin_id');
+    const studentToken = localStorage.getItem('student_token');
+    
+    // If admin community mode is enabled and we have admin credentials, trigger a reload
+    if (adminCommunityMode && adminToken && adminId && !studentToken && !isLoadingRef.current) {
+      console.log('🔄 Admin community mode detected, triggering reload');
+      // Force a re-check by clearing the loaded ref
+      loadedStudentIdRef.current = null;
+      // The main useEffect will run again because we're checking localStorage directly
+    }
+  }, []); // Run once on mount to check for admin mode
 
   
   // Load chat messages when a user is selected
@@ -481,12 +552,37 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
       return { id: otherId, name: otherName };
     });
 
-  // Early return if no studentId (after all hooks)
-  if (!studentId) {
+  // Check credentials (but don't block - let useEffect handle authentication)
+  // Only show error if we're not loading and have confirmed no credentials
+  const studentToken = localStorage.getItem('student_token');
+  const adminToken = localStorage.getItem('admin_token');
+  const adminCommunityMode = localStorage.getItem('admin_community_mode') === 'true';
+  const adminId = localStorage.getItem('admin_id');
+  const storedStudentId = localStorage.getItem('studentId');
+  
+  // Check for valid ID: student first, then admin (only if no student token)
+  const hasValidId = (studentToken && storedStudentId && !storedStudentId.startsWith('admin_')) 
+    || (adminCommunityMode && adminToken && adminId && !studentToken)
+    || (storedStudentId && storedStudentId.startsWith('admin_') && adminToken && adminId && !studentToken)
+    || (adminToken && adminId && !studentToken) // Allow admin access if admin token exists (fallback)
+    || (studentId && !studentId.startsWith('admin_'));
+  
+  // Only show error screen if we're done loading and confirmed no credentials
+  // Otherwise, show loading state and let useEffect handle authentication
+  if (!loading && !hasValidId && error) {
+    console.error('❌ No valid credentials found after loading', {
+      studentToken: !!studentToken,
+      adminToken: !!adminToken,
+      adminCommunityMode,
+      adminId,
+      storedStudentId,
+      contextStudentId: studentId,
+      error
+    });
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <p className="text-lg text-muted-foreground">Please log in to access the community.</p>
+          <p className="text-lg text-muted-foreground">{error || 'Please log in to access the community.'}</p>
           <Button onClick={onToggle} className="mt-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Go Back
@@ -627,7 +723,30 @@ export const Community: React.FC<CommunityProps> = ({ onToggle }) => {
           </Dialog>
 
           <Button
-            onClick={onToggle}
+            onClick={() => {
+              // Cleanup admin flags when exiting community
+              const adminCommunityMode = localStorage.getItem('admin_community_mode') === 'true';
+              if (adminCommunityMode) {
+                localStorage.removeItem('admin_community_mode');
+                // If studentId was set to admin ID, restore it to student ID if student token exists
+                const studentToken = localStorage.getItem('student_token');
+                const adminId = localStorage.getItem('admin_id');
+                const storedStudentId = localStorage.getItem('studentId');
+                if (studentToken && storedStudentId === adminId) {
+                  // Find actual student ID from student_email or clear it
+                  const studentEmail = localStorage.getItem('student_email');
+                  if (studentEmail) {
+                    // Try to reconstruct student ID or clear it
+                    const studentIdFromEmail = `student_${studentEmail.split('@')[0]}`;
+                    localStorage.setItem('studentId', studentIdFromEmail);
+                  } else {
+                    localStorage.removeItem('studentId');
+                  }
+                }
+                console.log('🧹 Cleared admin community mode flags on exit');
+              }
+              onToggle();
+            }}
             variant="ghost"
             className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors duration-200"
           >
