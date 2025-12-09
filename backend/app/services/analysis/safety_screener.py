@@ -55,7 +55,9 @@ class SafetyScreener:
         }
     
     def filter_response(self, response: str) -> str:
-        """Filter LLM response for safety."""
+        """Filter LLM response for safety and remove analysis sections."""
+        import re
+        
         # Remove any potentially harmful content
         # Basic filtering - can be enhanced
         
@@ -66,10 +68,51 @@ class SafetyScreener:
             r"you\s+should\s+take\s+medication",
         ]
         
-        import re
         filtered = response
         for pattern in harmful_patterns:
             filtered = re.sub(pattern, "[medical advice removed]", filtered, flags=re.IGNORECASE)
+        
+        # Remove reasoning/analysis sections that LLM might include
+        # Find where "Reasoning:" appears and remove everything from that point onward
+        # This handles formats like:
+        # "Response text. Reasoning: - Evidence: ... - Context: ... - Interpretation: ... - Uncertainty: ..."
+        reasoning_markers = [
+            r'Reasoning:',
+            r'Evidence:',
+            r'Context:',
+            r'Interpretation:',
+            r'Uncertainty:',
+            r'Analysis:',
+            r'Note:',
+        ]
+        
+        # Find the earliest occurrence of any reasoning marker
+        earliest_pos = len(filtered)
+        for marker in reasoning_markers:
+            match = re.search(marker, filtered, re.IGNORECASE)
+            if match and match.start() < earliest_pos:
+                earliest_pos = match.start()
+        
+        # If we found a reasoning marker, truncate the response at that point
+        if earliest_pos < len(filtered):
+            filtered = filtered[:earliest_pos].strip()
+        
+        # Also remove any standalone analysis patterns that might remain
+        analysis_patterns = [
+            r"Reasoning:.*",
+            r"Evidence:.*",
+            r"Context:.*",
+            r"Interpretation:.*",
+            r"Uncertainty:.*",
+            r"Analysis:.*",
+        ]
+        
+        for pattern in analysis_patterns:
+            filtered = re.sub(pattern, "", filtered, flags=re.IGNORECASE | re.DOTALL)
+        
+        # Clean up any double newlines or trailing whitespace
+        filtered = re.sub(r'\n{3,}', '\n\n', filtered)
+        filtered = filtered.strip()
         
         return filtered
 

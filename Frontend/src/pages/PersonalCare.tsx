@@ -96,6 +96,22 @@ export const PersonalCare: React.FC = () => {
     loadSessions();
   }, [studentId]);
 
+  // Initialize with new chat by default when component mounts or studentId changes
+  useEffect(() => {
+    if (!studentId) return;
+    
+    // Only initialize if we don't have messages yet and no session is selected
+    // This ensures we start with a fresh chat by default
+    if (messages.length === 0 && selectedSessionId === null) {
+      setMessages([{
+        id: '1',
+        content: "Hello! I'm Haven, your personal mental health companion. I'm here to listen, support, and guide you on your wellness journey. How are you feeling today?",
+        sender: 'haven',
+        timestamp: new Date()
+      }]);
+    }
+  }, [studentId]);
+
   // Load messages when a session is selected
   const handleSelectSession = async (sessionId: number) => {
     if (!studentId) return;
@@ -249,6 +265,7 @@ End of Chat Export
       const response = await processMessage({
         student_id: currentStudentId,
         message_text: currentMessage,
+        session_id: selectedSessionId || undefined, // Pass current session ID if available
         metadata: {},
       });
 
@@ -265,10 +282,26 @@ End of Chat Export
       setMessages(prev => [...prev, havenMessage]);
 
       // Refresh sessions list after sending message
+      // If we have a selected session, reload its messages to show the saved ones
+      // If no session is selected (new chat), refresh the list and optionally select the newly created session
       if (studentId) {
         try {
           const sessionsData = await getSessions(studentId);
           setSessions(sessionsData);
+          
+          // Only reload messages if we have an active session selected
+          if (selectedSessionId) {
+            const updatedSession = sessionsData.find(s => s.id === selectedSessionId);
+            if (updatedSession) {
+              // Reload messages for the current session to get the saved ones
+              await handleSelectSession(selectedSessionId);
+            }
+          } else {
+            // For new chats (selectedSessionId === null), the backend creates a new session
+            // We can optionally select the latest session to show it's been saved, but keep messages visible
+            // For now, we'll just refresh the list - the user can see their messages are saved
+            // and can access the session later from the sidebar
+          }
         } catch (error) {
           console.error('Error refreshing sessions:', error);
         }

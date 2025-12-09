@@ -443,6 +443,8 @@ SAFETY RULES:
 
 Student message: {message.message_text}
 
+IMPORTANT: Provide ONLY your response to the student. Do NOT include any reasoning, evidence, context, interpretation, uncertainty, or analysis sections. Just provide a warm, empathetic response directly to the student.
+
 Response (be warm, empathetic, and use their name {student_name} naturally):
 """
     
@@ -698,17 +700,9 @@ I'm here to support you, and professional help is available right now."""
             if session:
                 return session
         
-        # Get the most recent session (if it's from today, reuse it)
-        from datetime import date
-        today = date.today()
-        recent_session = self.db.query(Session).filter(
-            Session.student_id == student_id
-        ).order_by(Session.created_at.desc()).first()
-        
-        # If recent session exists and is from today, reuse it
-        if recent_session and recent_session.created_at.date() == today:
-            return recent_session
-        
+        # Only reuse today's session if session_id was explicitly None (continuing conversation)
+        # If session_id is None and we want a new chat, always create a new session
+        # For now, always create a new session when session_id is None to allow multiple chats per day
         # Create new session
         student.session_count = (student.session_count or 0) + 1
         new_session = Session(
@@ -731,9 +725,10 @@ I'm here to support you, and professional help is available right now."""
         # Get current messages list
         messages = session.messages if session.messages else []
         
-        # Add user message
+        # Add user message (use millisecond precision to avoid duplicate IDs)
+        timestamp_ms = int(time.time() * 1000)
         user_msg = {
-            "id": f"user_{int(time.time())}",
+            "id": f"user_{timestamp_ms}",
             "content": message.message_text,
             "sender": "user",
             "timestamp": message.timestamp.isoformat() if hasattr(message.timestamp, 'isoformat') else datetime.utcnow().isoformat()
@@ -742,8 +737,9 @@ I'm here to support you, and professional help is available right now."""
         
         # Add AI response if available
         if analysis.response_text:
+            ai_timestamp_ms = int(time.time() * 1000) + 1  # Ensure unique ID
             ai_msg = {
-                "id": f"haven_{int(time.time())}",
+                "id": f"haven_{ai_timestamp_ms}",
                 "content": analysis.response_text,
                 "sender": "haven",
                 "timestamp": datetime.utcnow().isoformat()
@@ -753,6 +749,11 @@ I'm here to support you, and professional help is available right now."""
         # Update session
         session.messages = messages
         self.db.commit()
+        self.db.refresh(session)  # Refresh to ensure changes are persisted
+        logger.info("messages_saved_to_session",
+                   student_id=message.student_id,
+                   session_id=session.id,
+                   message_count=len(messages))
 
 
 
