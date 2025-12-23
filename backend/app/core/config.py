@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4"
     
     # Local LLM Configuration (for Ollama, LM Studio, etc.)
-    local_llm_base_url: str = "http://localhost:11434/v1"  # Ollama default
-    local_llm_model: str = "llama2"  # or "mistral", "llama3", etc.
+    local_llm_base_url: str = "http://127.0.0.1:11434/v1"  # Ollama default
+    local_llm_model: str = "llama3.2"  # or "mistral", "llama3", etc.
     local_llm_api_key: Optional[str] = None  # Usually not needed for local
     
     # Environment

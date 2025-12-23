@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const hostname = window.location.hostname;
+const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${hostname}:8000/api`;
 
 export interface MessageRequest {
   student_id: string;
@@ -103,24 +104,24 @@ export interface ChatMessage {
 // Get risk profile for a student
 export async function getSessions(studentId: string): Promise<Session[]> {
   const response = await fetch(`${API_BASE_URL}/messages/sessions?student_id=${studentId}`);
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to fetch sessions' }));
     throw new Error(error.detail || 'Failed to fetch sessions');
   }
-  
+
   return await response.json();
 }
 
 // Get messages from a specific session
 export async function getSessionMessages(sessionId: number, studentId: string): Promise<ChatMessage[]> {
   const response = await fetch(`${API_BASE_URL}/messages/sessions/${sessionId}/messages?student_id=${studentId}`);
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to fetch session messages' }));
     throw new Error(error.detail || 'Failed to fetch session messages');
   }
-  
+
   return await response.json();
 }
 

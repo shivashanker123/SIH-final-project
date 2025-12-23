@@ -439,13 +439,21 @@ SAFETY RULES:
 - Focus on validation and support
 - Use the student's name ({student_name}) when appropriate to personalize your response
 
+FORMATTING RULES:
+- Use Markdown formatting to process your response.
+- Use bullet points (- ) for lists.
+- Use **bold** for emphasis.
+- Use ### Headers for sections if the response is long.
+- ALWAYS leave a blank line between paragraphs and list items.
+- Keep paragraphs short (2-3 sentences).
+
 {history_text}
 
 Student message: {message.message_text}
 
 IMPORTANT: Provide ONLY your response to the student. Do NOT include any reasoning, evidence, context, interpretation, uncertainty, or analysis sections. Just provide a warm, empathetic response directly to the student.
 
-Response (be warm, empathetic, and use their name {student_name} naturally):
+Response (be warm, empathetic, use their name {student_name} naturally, and follow formatting rules):
 """
     
     async def _extract_concern_indicators(self, message: Message, context: Dict[str, Any], 

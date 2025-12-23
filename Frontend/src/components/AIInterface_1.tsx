@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Bot, 
-  Send, 
-  Sparkles, 
-  Brain, 
-  Activity, 
+import ReactMarkdown from 'react-markdown';
+import {
+  Bot,
+  Send,
+  Sparkles,
+  Brain,
+  Activity,
   TrendingUp,
   MessageCircle,
   Zap,
@@ -32,21 +33,21 @@ const mockData = [
 ];
 
 const aiInsights = [
-  { 
-    icon: TrendingUp, 
-    title: "Mood Trending Up", 
+  {
+    icon: TrendingUp,
+    title: "Mood Trending Up",
     description: "Your mood has improved 25% this week",
     color: "text-green-500"
   },
-  { 
-    icon: Target, 
-    title: "Stress Reduction", 
+  {
+    icon: Target,
+    title: "Stress Reduction",
     description: "Meditation sessions showing positive impact",
     color: "text-blue-500"
   },
-  { 
-    icon: Activity, 
-    title: "Sleep Pattern", 
+  {
+    icon: Activity,
+    title: "Sleep Pattern",
     description: "Consider earlier bedtime for better wellness",
     color: "text-purple-500"
   }
@@ -59,6 +60,12 @@ export const AIInterface: React.FC<AIInterfaceProps> = ({ isOpen, onToggle }) =>
   ]);
   const [isTyping, setIsTyping] = useState(false);
 
+  // Auto-scroll to bottom of chat
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
   const handleSendMessage = async () => {
     if (!message.trim()) return;
 
@@ -67,15 +74,45 @@ export const AIInterface: React.FC<AIInterfaceProps> = ({ isOpen, onToggle }) =>
     setMessage('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem('token');
+      const hostname = window.location.hostname;
+      const API_URL = import.meta.env.VITE_API_URL || `http://${hostname}:8000/api`;
+
+      const response = await fetch(`${API_URL}/v1/chat/message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: userMessage.content,
+          student_id: "test_user"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch response');
+      }
+
+      const data = await response.json();
+
       const aiResponse = {
         role: 'ai',
-        content: 'I understand you\'re looking for wellness support. Based on your recent activity, I recommend trying our guided meditation or speaking with a counselor.'
+        content: data.response || "I'm sorry, I couldn't process that request."
       };
+
       setChatMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error("Chat Error:", error);
+      const errorResponse = {
+        role: 'ai',
+        content: "I'm having trouble connecting right now. Please try again later."
+      };
+      setChatMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   if (!isOpen) return null;
@@ -123,13 +160,18 @@ export const AIInterface: React.FC<AIInterfaceProps> = ({ isOpen, onToggle }) =>
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] p-3 rounded-2xl ${
-                          msg.role === 'user'
+                        className={`max-w-[80%] p-3 rounded-2xl ${msg.role === 'user'
                             ? 'bg-gradient-primary text-white'
                             : 'bg-card border border-border'
-                        }`}
+                          }`}
                       >
-                        <p className="text-sm">{msg.content}</p>
+                        {msg.role === 'ai' ? (
+                          <div className="prose prose-sm prose-invert max-w-none dark:prose-invert">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="text-sm">{msg.content}</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -144,6 +186,7 @@ export const AIInterface: React.FC<AIInterfaceProps> = ({ isOpen, onToggle }) =>
                       </div>
                     </div>
                   )}
+                  <div ref={chatEndRef} />
                 </div>
                 <div className="flex gap-2">
                   <Input
@@ -200,7 +243,7 @@ export const AIInterface: React.FC<AIInterfaceProps> = ({ isOpen, onToggle }) =>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
                       <YAxis stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
